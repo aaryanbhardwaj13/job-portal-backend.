@@ -1,8 +1,16 @@
-FROM maven:3.8.5-openjdk-17 AS build
-COPY . .
-RUN mvn clean package -DskipTests
+# syntax=docker/dockerfile:1
 
-FROM openjdk:17.0.1-jdk-slim
-COPY --from=build /target/JobPortal-0.0.1-SNAPSHOT.jar JobPortal.jar
+# ---- Build stage ----
+FROM maven:3.9.8-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY pom.xml .
+RUN mvn -q -DskipTests dependency:go-offline
+COPY src ./src
+RUN mvn -q -DskipTests package
+
+# ---- Runtime stage ----
+FROM eclipse-temurin:21-jre
+WORKDIR /opt/app
+COPY --from=build /app/target/JobPortal-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","JobPortal.jar"]
+ENTRYPOINT ["sh","-c","java -Dserver.port=${PORT:-8080} -jar app.jar"]
